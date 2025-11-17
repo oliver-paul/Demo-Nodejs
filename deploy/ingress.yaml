@@ -1,0 +1,29 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: node-project-ingress
+  namespace: node-project
+  labels:
+    app: node-project
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    # Uncomment if using cert-manager for TLS
+    # cert-manager.io/cluster-issuer: "letsencrypt-prod"
+spec:
+  ingressClassName: nginx
+  rules:
+  - host: node-project.test
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: node-project-service
+            port:
+              number: 3000
+  # Uncomment for TLS support
+  # tls:
+  # - hosts:
+  #   - node-project.local
+  #   secretName: node-project-tls
