@@ -19,7 +19,7 @@ spec:
     spec:
       containers:
       - name: node-project
-        image: node-project:latest
+        image: node-project:19
         imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 3000
@@ -38,11 +38,11 @@ spec:
               key: NODE_ENV
         resources:
           requests:
-            memory: "128Mi"
-            cpu: "100m"
+            memory: 128Mi
+            cpu: 100m
           limits:
-            memory: "256Mi"
-            cpu: "500m"
+            memory: 256Mi
+            cpu: 500m
         livenessProbe:
           httpGet:
             path: /
@@ -60,4 +60,3 @@ spec:
           timeoutSeconds: 3
           failureThreshold: 3
       restartPolicy: Always
-
