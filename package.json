@@ -5,7 +5,8 @@
   "main": "app.js",
   "scripts": {
     "start": "node app.js",
-    "test": "jest --watch"
+    "test": "jest --ci --passWithNoTests",
+    "test:watch": "jest --watch"
   },
   "author": "Oliver Paul",
   "license": "ISC",
