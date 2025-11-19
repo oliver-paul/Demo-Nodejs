@@ -19,7 +19,7 @@ spec:
     spec:
       containers:
       - name: node-project
-        image: node-project:19
+        image: node-project:43
         imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 3000
