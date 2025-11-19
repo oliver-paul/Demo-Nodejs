@@ -7,68 +7,35 @@ pipeline {
         DOCKER_IMAGE_TAG = "${BUILD_NUMBER}"
         DOCKER_IMAGE_LATEST = "${DOCKER_IMAGE_NAME}:latest"
         DOCKER_IMAGE_VERSIONED = "${DOCKER_IMAGE_NAME}:${DOCKER_IMAGE_TAG}"
-        
-        // ArgoCD configuration
-        ARGOCD_SERVER = 'argocd-server:8080'
-        ARGOCD_APP_NAME = 'node-project-app'
-        ARGOCD_NAMESPACE = 'node-project'
-        
-        // Paths
-        WORKSPACE_PATH = '/workspace'
-        DEPLOY_PATH = '/workspace/deploy'
+
+        DEPLOY_PATH = 'deploy'
     }
     
     stages {        
         stage('Run Tests') {
             steps {
-                echo 'Running tests...'
-                dir("${WORKSPACE_PATH}") {
-                    echo "Running tests..."
-                    sh "npm install"
-                    sh "npm test --passWithNoTests"
-                }
+                echo "Running tests..."
+                sh "npm install"
+                sh "npm test"
             }
         }
         stage('Build Docker Image') {
             steps {
                 echo "Building Docker image: ${DOCKER_IMAGE_VERSIONED}"
-                dir("${WORKSPACE_PATH}") {
-                    sh '''
-                        # Build Docker image with version tag
-                        docker build -t ${DOCKER_IMAGE_VERSIONED} .
-                        
-                        # Tag as latest
-                        docker tag ${DOCKER_IMAGE_VERSIONED} ${DOCKER_IMAGE_LATEST}
-                        
-                        # List images
-                        docker images | grep ${DOCKER_IMAGE_NAME}
-                    '''
-                }
+                sh "docker build -t ${DOCKER_IMAGE_VERSIONED} ."
+                sh "docker tag ${DOCKER_IMAGE_VERSIONED} ${DOCKER_IMAGE_LATEST}"
+                sh "docker images | grep ${DOCKER_IMAGE_NAME}"
             }
         }
         
         stage('Update Kubernetes Manifests') {
             steps {
-                echo 'Updating Kubernetes deployment manifests...'
-                dir("${WORKSPACE_PATH}") {
-                    sh '''
-                        # Update the image tag in deployment.yaml
-                        if [ -f ${DEPLOY_PATH}/deployment.yaml ]; then
-                            echo "Updating deployment.yaml with new image tag: ${DOCKER_IMAGE_VERSIONED}"
-                            
-                            # Backup original
-                            cp ${DEPLOY_PATH}/deployment.yaml ${DEPLOY_PATH}/deployment.yaml.bak
-                            
-                            # Update image tag (GNU sed in Jenkins container)
-                            sed -i "s|image: ${DOCKER_IMAGE_NAME}:.*|image: ${DOCKER_IMAGE_VERSIONED}|g" ${DEPLOY_PATH}/deployment.yaml
-                            
-                            echo "Updated deployment.yaml:"
-                            grep "image:" ${DEPLOY_PATH}/deployment.yaml
-                        else
-                            echo "deployment.yaml not found at ${DEPLOY_PATH}/deployment.yaml!"
-                            exit 1
-                        fi
-                    '''
+                echo "Updating deployment.yaml with image: ${DOCKER_IMAGE_VERSIONED}"
+                script {
+                    def deployment = readYaml file: "${DEPLOY_PATH}/deployment.yaml"
+                    deployment.spec.template.spec.containers[0].image = "${DOCKER_IMAGE_VERSIONED}"
+                    writeYaml file: "${DEPLOY_PATH}/deployment.yaml", data: deployment, overwrite: true
+                    echo "Successfully updated image to: ${DOCKER_IMAGE_VERSIONED}"
                 }
             }
         }
@@ -76,19 +43,37 @@ pipeline {
         stage('Verify Manifests') {
             steps {
                 echo 'Verifying Kubernetes manifests...'
-                sh '''
-                    echo "Checking manifest files..."
-                    ls -la ${DEPLOY_PATH}/
+                sh "cat ${DEPLOY_PATH}/deployment.yaml | grep -A 2 'image:'"
+                
+                script {
+                    // Get the current branch name or use main as default
+                    def branchName = sh(
+                        script: "git rev-parse --abbrev-ref HEAD",
+                        returnStdout: true
+                    ).trim()
                     
-                    echo ""
-                    echo "Deployment manifest image:"
-                    cat ${DEPLOY_PATH}/deployment.yaml | grep -A 2 "image:"
-                '''
+                    // If in detached HEAD state, checkout the branch
+                    if (branchName == 'HEAD') {
+                        // Try to get branch from GIT_BRANCH env var or default to main
+                        branchName = env.GIT_BRANCH ?: 'master'
+                        branchName = branchName.replaceAll('origin/', '')
+                        echo "In detached HEAD state, checking out branch: ${branchName}"
+                        sh "git checkout ${branchName}"
+                    }
+                    
+                    echo "Current branch: ${branchName}"
+                    sh "git add ${DEPLOY_PATH}/deployment.yaml"
+                    sh "git commit -m 'Update deployment.yaml with new image tag: ${DOCKER_IMAGE_VERSIONED}' || echo 'No changes to commit'"
+                    sh "git push origin ${branchName}"
+                }
             }
         }
     }
     
     post {
+        always {
+            cleanWs()
+        }
         success {
             echo 'Pipeline completed successfully!'
             echo "Application deployed with image: ${DOCKER_IMAGE_VERSIONED}"
