@@ -4,5 +4,3 @@ metadata:
   name: node-project
   labels:
     name: node-project
-    environment: production
-
