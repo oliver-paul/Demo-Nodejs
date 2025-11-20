@@ -27,46 +27,46 @@ pipeline {
                 sh "docker images | grep ${DOCKER_IMAGE_NAME}"
             }
         }
-        stage('Update Kubernetes Manifests') {
-            steps {
-                echo "Updating deployment.yaml with image: ${DOCKER_IMAGE_VERSIONED}"
-                script {
-                    def deployment = readYaml file: "${DEPLOY_PATH}/deployment.yaml"
-                    deployment.spec.template.spec.containers[0].image = "${DOCKER_IMAGE_VERSIONED}"
-                    writeYaml file: "${DEPLOY_PATH}/deployment.yaml", data: deployment, overwrite: true
-                    echo "Successfully updated image to: ${DOCKER_IMAGE_VERSIONED}"
-                }
-            }
-        }
+        // stage('Update Kubernetes Manifests') {
+        //     steps {
+        //         echo "Updating deployment.yaml with image: ${DOCKER_IMAGE_VERSIONED}"
+        //         script {
+        //             def deployment = readYaml file: "${DEPLOY_PATH}/deployment.yaml"
+        //             deployment.spec.template.spec.containers[0].image = "${DOCKER_IMAGE_VERSIONED}"
+        //             writeYaml file: "${DEPLOY_PATH}/deployment.yaml", data: deployment, overwrite: true
+        //             echo "Successfully updated image to: ${DOCKER_IMAGE_VERSIONED}"
+        //         }
+        //     }
+        // }
         
-        stage('Verify Manifests') {
-            steps {
-                echo 'Verifying Kubernetes manifests...'
-                sh "cat ${DEPLOY_PATH}/deployment.yaml | grep -A 2 'image:'"
+        // stage('Verify Manifests') {
+        //     steps {
+        //         echo 'Verifying Kubernetes manifests...'
+        //         sh "cat ${DEPLOY_PATH}/deployment.yaml | grep -A 2 'image:'"
                 
-                script {
-                    // Get the current branch name or use main as default
-                    def branchName = sh(
-                        script: "git rev-parse --abbrev-ref HEAD",
-                        returnStdout: true
-                    ).trim()
+        //         script {
+        //             // Get the current branch name or use main as default
+        //             def branchName = sh(
+        //                 script: "git rev-parse --abbrev-ref HEAD",
+        //                 returnStdout: true
+        //             ).trim()
                     
-                    // If in detached HEAD state, checkout the branch
-                    if (branchName == 'HEAD') {
-                        // Try to get branch from GIT_BRANCH env var or default to main
-                        branchName = env.GIT_BRANCH ?: 'master'
-                        branchName = branchName.replaceAll('origin/', '')
-                        echo "In detached HEAD state, checking out branch: ${branchName}"
-                        sh "git checkout ${branchName}"
-                    }
+        //             // If in detached HEAD state, checkout the branch
+        //             if (branchName == 'HEAD') {
+        //                 // Try to get branch from GIT_BRANCH env var or default to main
+        //                 branchName = env.GIT_BRANCH ?: 'master'
+        //                 branchName = branchName.replaceAll('origin/', '')
+        //                 echo "In detached HEAD state, checking out branch: ${branchName}"
+        //                 sh "git checkout ${branchName}"
+        //             }
                     
-                    echo "Current branch: ${branchName}"
-                    sh "git add ${DEPLOY_PATH}/deployment.yaml"
-                    sh "git commit -m 'Update deployment.yaml with new image tag: ${DOCKER_IMAGE_VERSIONED}' || echo 'No changes to commit'"
-                    sh "git push origin ${branchName}"
-                }
-            }
-        }
+        //             echo "Current branch: ${branchName}"
+        //             sh "git add ${DEPLOY_PATH}/deployment.yaml"
+        //             sh "git commit -m 'Update deployment.yaml with new image tag: ${DOCKER_IMAGE_VERSIONED}' || echo 'No changes to commit'"
+        //             sh "git push origin ${branchName}"
+        //         }
+        //     }
+        // }
     }
     
     post {
