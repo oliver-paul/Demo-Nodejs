@@ -1,19 +1,8 @@
 services:
   app:
-    container_name: app
+    container_name: application
     build:
       context: .
       dockerfile: Dockerfile
     ports:
       - "3000:3000"
-    networks:
-      - app-network
-
-networks:
-  app-network:
-    driver: bridge
-
-volumes:
-  jenkins_home:
-  argocd_data:
-  argocd_repos:
